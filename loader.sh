@@ -1,7 +1,6 @@
-#!/usr/bin/env bash
 # shtick loader — source this from .zshrc
 
-_shtick_dir="$(cd "$(dirname "${BASH_SOURCE[0]:-$0}")" && pwd)"
+_shtick_dir="${0:A:h}"  # zsh-native: absolute path of this file's directory
 _shtick_conf="${HOME}/.config/shtick/enabled.conf"
 
 # Source enabled functions
@@ -34,9 +33,10 @@ shtick() {
       fi
       for f in "${_shtick_dir}/functions/"*.sh; do
         [[ -f "$f" ]] || continue
-        local name desc marker
+        local name desc platform marker
         name=$(grep -m1 '^# @name:' "$f" | sed 's/# @name:[[:space:]]*//')
         desc=$(grep -m1 '^# @description:' "$f" | sed 's/# @description:[[:space:]]*//')
+        platform=$(grep -m1 '^# @platform:' "$f" | sed 's/# @platform:[[:space:]]*//')
         [[ -z "$name" ]] && continue
         marker="[ ]"
         for n in "${enabled_names[@]}"; do
@@ -45,7 +45,11 @@ shtick() {
             break
           fi
         done
-        printf "  %s %-16s %s\n" "$marker" "$name" "$desc"
+        if [[ -n "$platform" ]]; then
+          printf "  %s %-16s %s [%s]\n" "$marker" "$name" "$desc" "$platform"
+        else
+          printf "  %s %-16s %s\n" "$marker" "$name" "$desc"
+        fi
       done
       echo ""
       echo "  [*] enabled    [ ] disabled"
@@ -53,6 +57,10 @@ shtick() {
 
     enable)
       local name="${2:?Usage: shtick enable <name>}"
+      if [[ ! "$name" =~ ^[a-zA-Z0-9_-]+$ ]]; then
+        echo "shtick: invalid function name '${name}'" >&2
+        return 1
+      fi
       local file="${_shtick_dir}/functions/${name}.sh"
       if [[ ! -f "$file" ]]; then
         echo "shtick: no function named '${name}'" >&2
@@ -72,6 +80,10 @@ shtick() {
 
     disable)
       local name="${2:?Usage: shtick disable <name>}"
+      if [[ ! "$name" =~ ^[a-zA-Z0-9_-]+$ ]]; then
+        echo "shtick: invalid function name '${name}'" >&2
+        return 1
+      fi
       if [[ ! -f "$_shtick_conf" ]] || ! grep -qx "$name" "$_shtick_conf" 2>/dev/null; then
         echo "shtick: '${name}' is not enabled"
         return 1
@@ -85,6 +97,10 @@ shtick() {
 
     help)
       local name="${2:?Usage: shtick help <name>}"
+      if [[ ! "$name" =~ ^[a-zA-Z0-9_-]+$ ]]; then
+        echo "shtick: invalid function name '${name}'" >&2
+        return 1
+      fi
       local file="${_shtick_dir}/functions/${name}.sh"
       if [[ ! -f "$file" ]]; then
         echo "shtick: no function named '${name}'" >&2

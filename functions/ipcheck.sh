@@ -1,6 +1,7 @@
 # @name: ipcheck
 # @description: Show public IP, local network info, VPN status, and open ipleak.net
 # @usage: ipcheck
+# @platform: macOS
 
 ipcheck() {
   local BOLD='\033[1m'
@@ -10,12 +11,13 @@ ipcheck() {
   local CYAN='\033[36m'
   local RESET='\033[0m'
 
-  _ipcheck_divider() { printf "${DIM}─%.0s${RESET}" {1..60}; echo; }
+  local divider
+  divider=$(printf '─%.0s' {1..60})
 
   # --- Public IP ---
   echo
   printf "${BOLD}${CYAN}Public IP${RESET}\n"
-  _ipcheck_divider
+  printf "${DIM}%s${RESET}\n" "$divider"
   local PUBLIC_IP
   PUBLIC_IP=$(dig +short myip.opendns.com @resolver1.opendns.com 2>/dev/null || echo "")
   if [[ -z "$PUBLIC_IP" ]]; then
@@ -26,7 +28,7 @@ ipcheck() {
   # --- VPN Status ---
   echo
   printf "${BOLD}${CYAN}VPN Status${RESET}\n"
-  _ipcheck_divider
+  printf "${DIM}%s${RESET}\n" "$divider"
   local VPN_FOUND=false
 
   # Check for utun interfaces (WireGuard, system VPN)
@@ -93,7 +95,7 @@ ipcheck() {
   # --- Network Interfaces ---
   echo
   printf "${BOLD}${CYAN}Network Interfaces${RESET}\n"
-  _ipcheck_divider
+  printf "${DIM}%s${RESET}\n" "$divider"
 
   local WIFI_DEVICE WIFI_IP SSID
   WIFI_DEVICE=$(networksetup -listallhardwareports 2>/dev/null | awk '/Wi-Fi/{getline; print $2}' || true)
@@ -117,7 +119,7 @@ ipcheck() {
   # --- DNS ---
   echo
   printf "${BOLD}${CYAN}DNS Configuration${RESET}\n"
-  _ipcheck_divider
+  printf "${DIM}%s${RESET}\n" "$divider"
   local DNS_SERVERS
   DNS_SERVERS=$(scutil --dns 2>/dev/null | awk '/nameserver\[/ {print $3}' | sort -u | head -5 || true)
   if [[ -n "$DNS_SERVERS" ]]; then
@@ -132,14 +134,14 @@ ipcheck() {
   # --- Default Gateway ---
   echo
   printf "${BOLD}${CYAN}Default Gateway${RESET}\n"
-  _ipcheck_divider
+  printf "${DIM}%s${RESET}\n" "$divider"
   local GATEWAY
   GATEWAY=$(route -n get default 2>/dev/null | awk '/gateway:/ {print $2}' || netstat -rn 2>/dev/null | awk '/^default.*en/ {print $2; exit}' || echo "unknown")
   printf "  %s\n" "$GATEWAY"
 
   # --- Open ipleak.net ---
   echo
-  _ipcheck_divider
+  printf "${DIM}%s${RESET}\n" "$divider"
   local URL
   if [[ "$PUBLIC_IP" != "unavailable" ]]; then
     URL="https://ipleak.net/?q=${PUBLIC_IP}"
@@ -152,6 +154,5 @@ ipcheck() {
   fi
   echo
 
-  unset -f _ipcheck_divider
 }
 alias ipc='ipcheck'
