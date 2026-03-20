@@ -76,7 +76,7 @@ ipcheck() {
 
   # Check for common VPN processes
   local VPN_PROCS="" proc
-  for proc in "Mullvad VPN" "openvpn" "wireguard-go" "tailscaled" "nordvpn" "ExpressVPN" "Windscribe" "cloudflared"; do
+  for proc in "Mullvad VPN" "openvpn" "wireguard-go" "tailscaled" "nordvpn" "ExpressVPN" "Windscribe" "cloudflared" "GlobalProtect" "PanGPS" "gpd"; do
     if pgrep -fi "$proc" >/dev/null 2>&1; then
       VPN_PROCS="${VPN_PROCS}  ${GREEN}Running${RESET}: ${proc}\n"
       VPN_FOUND=true
@@ -154,3 +154,4 @@ ipcheck() {
 
   unset -f _ipcheck_divider
 }
+alias ipc='ipcheck'
