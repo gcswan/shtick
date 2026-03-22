@@ -5,6 +5,17 @@
 
 getsecret() {
   local secret_id="${1:?Usage: getsecret <secret-id>}"
+
+  if ! command -v aws &>/dev/null; then
+    echo "getsecret: AWS CLI is not installed" >&2
+    return 1
+  fi
+
+  if ! aws sts get-caller-identity &>/dev/null; then
+    echo "getsecret: not authenticated with AWS (run 'aws configure' or check your credentials)" >&2
+    return 1
+  fi
+
   aws secretsmanager get-secret-value \
     --secret-id "$secret_id" \
     --query SecretString \
