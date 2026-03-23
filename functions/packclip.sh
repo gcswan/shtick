@@ -19,4 +19,3 @@ packclip() {
     && osascript -e "set the clipboard to (POSIX file \"$tmp\")" \
     && echo "Copied $tmp to clipboard"
 }
-alias pc='packclip'

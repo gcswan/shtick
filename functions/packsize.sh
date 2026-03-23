@@ -18,4 +18,3 @@ packsize() {
   echo "Uncompressed text: $(find "$dir" "${find_excludes[@]}" -not -name '*.pyc' -type f -exec cat {} + 2>/dev/null | wc -c | awk '{printf "%.1fKB", $1/1024}')"
   echo "Est. tokens: $(find "$dir" "${find_excludes[@]}" -not -name '*.pyc' -type f -exec cat {} + 2>/dev/null | wc -c | awk '{printf "%.0fk", $1/4/1000}')"
 }
-alias pz='packsize'

@@ -155,4 +155,3 @@ ipcheck() {
   echo
 
 }
-alias ipc='ipcheck'

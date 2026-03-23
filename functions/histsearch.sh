@@ -15,4 +15,3 @@ histsearch() {
 
   [[ -n $cmd ]] && print -z -- "$cmd"
 }
-alias hs='histsearch'

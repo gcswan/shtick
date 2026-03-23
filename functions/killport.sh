@@ -29,4 +29,3 @@ killport() {
     kill $pid || { echo "SIGTERM failed, use killport -f $port to force"; return 1; }
   fi
 }
-alias kp='killport'

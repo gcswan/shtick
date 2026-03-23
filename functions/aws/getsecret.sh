@@ -22,5 +22,3 @@ getsecret() {
     --output text \
   | jq -r . || echo "Failed to retrieve secret: $secret_id"
 }
-
-alias gsec='getsecret'

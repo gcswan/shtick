@@ -6,4 +6,3 @@
 kubetoken() {
     kubectl get secret dashboard-admin-sa -o jsonpath={".data.token"} | base64 -d | pbcopy
 }
-alias kt='kubetoken'
