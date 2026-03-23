@@ -7,10 +7,11 @@ _shtick_conf="${HOME}/.config/shtick/enabled.conf"
 if [[ -f "$_shtick_conf" ]]; then
   while IFS= read -r _shtick_name || [[ -n "$_shtick_name" ]]; do
     [[ -z "$_shtick_name" || "$_shtick_name" == \#* ]] && continue
-    _shtick_file="${_shtick_dir}/functions/${_shtick_name}.sh"
-    if [[ -f "$_shtick_file" ]]; then
+    local -a _shtick_file
+    _shtick_file=( "${_shtick_dir}/functions"/**/"${_shtick_name}.sh"(N) )
+    if [[ ${#_shtick_file} -gt 0 ]]; then
       # shellcheck disable=SC1090
-      source "$_shtick_file"
+      source "${_shtick_file[1]}"
     fi
   done < "$_shtick_conf"
 fi
@@ -31,7 +32,7 @@ shtick() {
           enabled_names+=("$line")
         done < "$_shtick_conf"
       fi
-      for f in "${_shtick_dir}/functions/"*.sh; do
+      for f in "${_shtick_dir}/functions/"**/*.sh; do
         [[ -f "$f" ]] || continue
         local name desc platform marker
         name=$(grep -m1 '^# @name:' "$f" | sed 's/# @name:[[:space:]]*//')
@@ -61,11 +62,13 @@ shtick() {
         echo "shtick: invalid function name '${name}'" >&2
         return 1
       fi
-      local file="${_shtick_dir}/functions/${name}.sh"
-      if [[ ! -f "$file" ]]; then
+      local -a _found
+      _found=( "${_shtick_dir}/functions"/**/"${name}.sh"(N) )
+      if [[ ${#_found} -eq 0 ]]; then
         echo "shtick: no function named '${name}'" >&2
         return 1
       fi
+      local file="${_found[1]}"
       mkdir -p "$(dirname "$_shtick_conf")"
       touch "$_shtick_conf"
       if grep -qx "$name" "$_shtick_conf" 2>/dev/null; then
@@ -101,12 +104,13 @@ shtick() {
         echo "shtick: invalid function name '${name}'" >&2
         return 1
       fi
-      local file="${_shtick_dir}/functions/${name}.sh"
-      if [[ ! -f "$file" ]]; then
+      local -a _found
+      _found=( "${_shtick_dir}/functions"/**/"${name}.sh"(N) )
+      if [[ ${#_found} -eq 0 ]]; then
         echo "shtick: no function named '${name}'" >&2
         return 1
       fi
-      grep '^# @' "$file"
+      grep '^# @' "${_found[1]}"
       ;;
 
     update)
