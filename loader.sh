@@ -8,7 +8,7 @@ if [[ -f "$_shtick_conf" ]]; then
   while IFS= read -r _shtick_name || [[ -n "$_shtick_name" ]]; do
     [[ -z "$_shtick_name" || "$_shtick_name" == \#* ]] && continue
     local -a _shtick_file
-    _shtick_file=( "${_shtick_dir}/functions/**/${_shtick_name}.sh"(N) )
+    _shtick_file=( "${_shtick_dir}/functions"/**/"${_shtick_name}.sh"(N) )
     if [[ ${#_shtick_file} -gt 0 ]]; then
       # shellcheck disable=SC1090
       source "${_shtick_file[1]}"
@@ -63,7 +63,7 @@ shtick() {
         return 1
       fi
       local -a _found
-      _found=( "${_shtick_dir}/functions/**/${name}.sh"(N) )
+      _found=( "${_shtick_dir}/functions"/**/"${name}.sh"(N) )
       if [[ ${#_found} -eq 0 ]]; then
         echo "shtick: no function named '${name}'" >&2
         return 1
@@ -105,7 +105,7 @@ shtick() {
         return 1
       fi
       local -a _found
-      _found=( "${_shtick_dir}/functions/**/${name}.sh"(N) )
+      _found=( "${_shtick_dir}/functions"/**/"${name}.sh"(N) )
       if [[ ${#_found} -eq 0 ]]; then
         echo "shtick: no function named '${name}'" >&2
         return 1
