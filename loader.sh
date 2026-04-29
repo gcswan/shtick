@@ -19,12 +19,10 @@ unset _shtick_name _shtick_file
 
 # shtick discovery command
 shtick() {
-  local cmd="${1:-list}"
+  local cmd="${1:-help}"
 
   case "$cmd" in
     list)
-      echo "Available shtick functions:"
-      echo ""
       local enabled_names=()
       if [[ -f "$_shtick_conf" ]]; then
         while IFS= read -r line || [[ -n "$line" ]]; do
@@ -32,28 +30,38 @@ shtick() {
           enabled_names+=("$line")
         done < "$_shtick_conf"
       fi
+
+      local entries=() name desc platform marker enabled_count=0 total_count=0
       for f in "${_shtick_dir}/functions/"**/*.sh; do
         [[ -f "$f" ]] || continue
-        local name desc platform marker
         name=$(grep -m1 '^# @name:' "$f" | sed 's/# @name:[[:space:]]*//')
         desc=$(grep -m1 '^# @description:' "$f" | sed 's/# @description:[[:space:]]*//')
         platform=$(grep -m1 '^# @platform:' "$f" | sed 's/# @platform:[[:space:]]*//')
         [[ -z "$name" ]] && continue
-        marker="[ ]"
+        total_count=$((total_count + 1))
+        marker=" "
         for n in "${enabled_names[@]}"; do
           if [[ "$n" == "$name" ]]; then
-            marker="[*]"
+            marker="*"
+            enabled_count=$((enabled_count + 1))
             break
           fi
         done
-        if [[ -n "$platform" ]]; then
-          printf "  %s %-16s %s [%s]\n" "$marker" "$name" "$desc" "$platform"
-        else
-          printf "  %s %-16s %s\n" "$marker" "$name" "$desc"
-        fi
+        local suffix=""
+        [[ -n "$platform" ]] && suffix=" \033[2m($platform)\033[0m"
+        entries+=("$(printf "  \033[2m[\033[0m\033[1m%s\033[0m\033[2m]\033[0m  \033[36m%-14s\033[0m %s%b" "$marker" "$name" "$desc" "$suffix")")
+      done
+
+      echo ""
+      printf "  \033[1mshtick\033[0m — shell functions manager\n"
+      printf "  \033[2m%d enabled, %d available\033[0m\n" "$enabled_count" "$total_count"
+      echo ""
+      for entry in "${entries[@]}"; do
+        printf "%b\n" "$entry"
       done
       echo ""
-      echo "  [*] enabled    [ ] disabled"
+      printf "  \033[2m[*] enabled  [ ] disabled  •  shtick enable/disable <name>\033[0m\n"
+      echo ""
       ;;
 
     enable)
@@ -110,7 +118,15 @@ shtick() {
         echo "shtick: no function named '${name}'" >&2
         return 1
       fi
-      grep '^# @' "${_found[1]}"
+      echo ""
+      while IFS= read -r line; do
+        local key val
+        key="${line#\# @}"
+        key="${key%%:*}"
+        val="${line#*: }"
+        printf "  \033[2m%-14s\033[0m %s\n" "$key" "$val"
+      done < <(grep '^# @' "${_found[1]}")
+      echo ""
       ;;
 
     update)
@@ -124,15 +140,17 @@ shtick() {
       ;;
 
     *)
-      echo "Usage: shtick <command> [args]"
       echo ""
-      echo "Commands:"
-      echo "  list              list all functions, marking enabled ones"
-      echo "  enable <name>     enable a function"
-      echo "  disable <name>    disable a function"
-      echo "  help <name>       show header for a function"
-      echo "  update            git pull the shtick repo"
-      echo "  reload            re-source loader.sh"
+      printf "  \033[1mUsage:\033[0m shtick <command> [args]\n"
+      echo ""
+      printf "  \033[1mCommands:\033[0m\n"
+      printf "    \033[36mlist\033[0m              list all functions\n"
+      printf "    \033[36menable\033[0m  <name>    enable a function\n"
+      printf "    \033[36mdisable\033[0m <name>    disable a function\n"
+      printf "    \033[36mhelp\033[0m    <name>    show function details\n"
+      printf "    \033[36mupdate\033[0m            git pull the shtick repo\n"
+      printf "    \033[36mreload\033[0m            re-source loader.sh\n"
+      echo ""
       ;;
   esac
 }
