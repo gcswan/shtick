@@ -19,9 +19,12 @@ ipcheck() {
   printf "${BOLD}${CYAN}Public IP${RESET}\n"
   printf "${DIM}%s${RESET}\n" "$divider"
   local PUBLIC_IP
-  PUBLIC_IP=$(dig +short myip.opendns.com @resolver1.opendns.com 2>/dev/null || echo "")
+  PUBLIC_IP=$(curl -s --max-time 5 https://api.ipify.org 2>/dev/null || echo "")
   if [[ -z "$PUBLIC_IP" ]]; then
-    PUBLIC_IP=$(curl -s --max-time 5 https://api.ipify.org 2>/dev/null || echo "unavailable")
+    PUBLIC_IP=$(curl -s --max-time 5 https://ifconfig.me 2>/dev/null || echo "")
+  fi
+  if [[ -z "$PUBLIC_IP" ]]; then
+    PUBLIC_IP=$(dig +short myip.opendns.com @resolver1.opendns.com 2>/dev/null || echo "unavailable")
   fi
   printf "  IP: ${BOLD}%s${RESET}\n" "$PUBLIC_IP"
 

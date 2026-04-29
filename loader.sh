@@ -19,7 +19,7 @@ unset _shtick_name _shtick_file
 
 # shtick discovery command
 shtick() {
-  local cmd="${1:-help}"
+  local cmd="${1:-usage}"
 
   case "$cmd" in
     list)
