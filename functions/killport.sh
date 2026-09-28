@@ -8,12 +8,12 @@ killport() {
   local usage="Usage: killport [-y|--yes] [-f|--force] [-n|--dry-run] [<port|start-end>[,...] ...]"
   local -a specs
 
+  local flag
   while (( $# )); do
     case "$1" in
-      -y|--yes)     yes=true ;;
-      -f|--force)   force=true ;;
-      -n|--dry-run) dry_run=true ;;
-      -fy|-yf)      force=true; yes=true ;;
+      --yes)     yes=true ;;
+      --force)   force=true ;;
+      --dry-run) dry_run=true ;;
       -h|--help)
         echo "$usage"
         echo "  With no ports, lists every TCP listener. Asks before killing unless -y."
@@ -23,7 +23,18 @@ killport() {
         echo "Examples: killport | killport 3000 | killport 3000-3005 8080 5173,5174 | killport -y 8080"
         return 0
         ;;
-      -*) echo "killport: unknown option '$1'" >&2; echo "$usage" >&2; return 1 ;;
+      --*) echo "killport: unknown option '$1'" >&2; echo "$usage" >&2; return 1 ;;
+      # Short flags, alone or bundled (-y, -fy, -nf)
+      -?*)
+        for flag in ${(s::)1#-}; do
+          case "$flag" in
+            y) yes=true ;;
+            f) force=true ;;
+            n) dry_run=true ;;
+            *) echo "killport: unknown option '-$flag'" >&2; echo "$usage" >&2; return 1 ;;
+          esac
+        done
+        ;;
       *)  specs+=( ${(s:,:)1} ) ;;
     esac
     shift
@@ -51,7 +62,7 @@ killport() {
   local out
   out=$(lsof -nP -sTCP:LISTEN -Fpcn $selectors 2>/dev/null)
 
-  local line pid cmd
+  local line pid
   local -a rows pids
   local -A cmds pid_ports
   for line in ${(f)out}; do
