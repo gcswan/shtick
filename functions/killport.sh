@@ -1,5 +1,5 @@
 # @name: killport
-# @description: List TCP listeners (all, or by port/range) and offer to kill them
+# @description: List local dev servers (or anything on given ports/ranges) and offer to kill them
 # @usage: killport [-y|--yes] [-f|--force] [-n|--dry-run] [<port|start-end>[,...] ...]
 # @example: killport | killport 3000 | killport 3000-3005 8080 5173,5174 | killport -y 8080
 
@@ -16,7 +16,8 @@ killport() {
       --dry-run) dry_run=true ;;
       -h|--help)
         echo "$usage"
-        echo "  With no ports, lists every TCP listener. Asks before killing unless -y."
+        echo "  With no ports, lists dev servers (node, bun, python, ...) on localhost TCP."
+        echo "  With ports, lists anything listening on them. Asks before killing unless -y."
         echo "  -y, --yes      kill without asking"
         echo "  -f, --force    send SIGKILL instead of SIGTERM"
         echo "  -n, --dry-run  list matching processes without killing them"
@@ -56,20 +57,33 @@ killport() {
     fi
     selectors+=( -iTCP:$lo-$hi )
   done
-  (( ${#selectors} )) || selectors=( -iTCP )
+  # No ports given: only offer dev servers, never system/app listeners (Spotify, Docker, ...)
+  local dev_only=false
+  local dev_cmds='(node|bun|deno|python*|ruby|php*|java|dotnet|go)'
+  local dev_hosts='(127.*|\[::1\]|localhost|\*|0.0.0.0|\[::\])'
+  if (( ! ${#selectors} )); then
+    dev_only=true
+    selectors=( -iTCP )
+  fi
 
   # Listeners only, so clients connected to these ports (e.g. browser tabs) are left alone
   local out
   out=$(lsof -nP -sTCP:LISTEN -Fpcn $selectors 2>/dev/null)
 
-  local line pid
+  local line pid addr
   local -a rows pids
   local -A cmds pid_ports
   for line in ${(f)out}; do
     case "$line" in
       p*) pid=${line#p} ;;
       c*) cmds[$pid]=${line#c} ;;
-      n*) rows+=( "${line##*:} $pid" ) ;;
+      n*)
+        addr=${line#n}
+        if $dev_only; then
+          [[ ${addr%:*} == $~dev_hosts && ${cmds[$pid]:l} == $~dev_cmds ]] || continue
+        fi
+        rows+=( "${addr##*:} $pid" )
+        ;;
     esac
   done
 
@@ -77,7 +91,7 @@ killport() {
     if (( ${#specs} )); then
       echo "Nothing listening on ${(j:, :)specs}"
     else
-      echo "Nothing listening on TCP"
+      echo "No dev servers listening on localhost"
     fi
     return 1
   fi
