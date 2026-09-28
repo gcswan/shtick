@@ -1,34 +1,44 @@
 # @name: killport
-# @description: Kill processes listening on TCP ports, port ranges, or any mix of them
-# @usage: killport [-f|--force] [-n|--dry-run] <port|start-end>[,...] ...
-# @example: killport 3000 | killport 3000-3005 | killport 3000-3005 8080 5173,5174
+# @description: List TCP listeners (all, or by port/range) and offer to kill them
+# @usage: killport [-y|--yes] [-f|--force] [-n|--dry-run] [<port|start-end>[,...] ...]
+# @example: killport | killport 3000 | killport 3000-3005 8080 5173,5174 | killport -y 8080
 
 killport() {
-  local force=false dry_run=false
-  local usage="Usage: killport [-f|--force] [-n|--dry-run] <port|start-end>[,...] ..."
+  local force=false dry_run=false yes=false
+  local usage="Usage: killport [-y|--yes] [-f|--force] [-n|--dry-run] [<port|start-end>[,...] ...]"
   local -a specs
 
+  local flag
   while (( $# )); do
     case "$1" in
-      -f|--force)   force=true ;;
-      -n|--dry-run) dry_run=true ;;
+      --yes)     yes=true ;;
+      --force)   force=true ;;
+      --dry-run) dry_run=true ;;
       -h|--help)
         echo "$usage"
+        echo "  With no ports, lists every TCP listener. Asks before killing unless -y."
+        echo "  -y, --yes      kill without asking"
         echo "  -f, --force    send SIGKILL instead of SIGTERM"
         echo "  -n, --dry-run  list matching processes without killing them"
-        echo "Examples: killport 3000 | killport 3000-3005 | killport 3000-3005 8080 5173,5174"
+        echo "Examples: killport | killport 3000 | killport 3000-3005 8080 5173,5174 | killport -y 8080"
         return 0
         ;;
-      -*) echo "killport: unknown option '$1'" >&2; echo "$usage" >&2; return 1 ;;
+      --*) echo "killport: unknown option '$1'" >&2; echo "$usage" >&2; return 1 ;;
+      # Short flags, alone or bundled (-y, -fy, -nf)
+      -?*)
+        for flag in ${(s::)1#-}; do
+          case "$flag" in
+            y) yes=true ;;
+            f) force=true ;;
+            n) dry_run=true ;;
+            *) echo "killport: unknown option '-$flag'" >&2; echo "$usage" >&2; return 1 ;;
+          esac
+        done
+        ;;
       *)  specs+=( ${(s:,:)1} ) ;;
     esac
     shift
   done
-
-  if (( ! ${#specs} )); then
-    echo "$usage" >&2
-    return 1
-  fi
 
   # Validate each spec and turn it into an lsof selector (lsof accepts ranges natively)
   local spec lo hi
@@ -46,14 +56,15 @@ killport() {
     fi
     selectors+=( -iTCP:$lo-$hi )
   done
+  (( ${#selectors} )) || selectors=( -iTCP )
 
   # Listeners only, so clients connected to these ports (e.g. browser tabs) are left alone
   local out
   out=$(lsof -nP -sTCP:LISTEN -Fpcn $selectors 2>/dev/null)
 
-  local line pid cmd
+  local line pid
   local -a rows pids
-  local -A cmds
+  local -A cmds pid_ports
   for line in ${(f)out}; do
     case "$line" in
       p*) pid=${line#p} ;;
@@ -63,21 +74,40 @@ killport() {
   done
 
   if (( ! ${#rows} )); then
-    echo "Nothing listening on ${(j:, :)specs}"
+    if (( ${#specs} )); then
+      echo "Nothing listening on ${(j:, :)specs}"
+    else
+      echo "Nothing listening on TCP"
+    fi
     return 1
   fi
 
   # One row per port/PID pair (IPv4 and IPv6 listeners collapse), sorted by port
   local row port
+  printf "  %-6s %s\n" "PORT" "PROCESS"
   for row in ${(onu)rows}; do
     port=${row%% *}
     pid=${row##* }
     printf "  %-6s %s (PID %s)\n" "$port" "${cmds[$pid]}" "$pid"
     pids+=( $pid )
+    pid_ports[$pid]+="${pid_ports[$pid]:+ }$port"
   done
   pids=( ${(u)pids} )
 
   $dry_run && return 0
+
+  if ! $yes; then
+    if [[ ! -t 0 ]]; then
+      echo "killport: not a terminal; pass -y to kill without asking" >&2
+      return 1
+    fi
+    if ! read -q "?Kill ${#pids} process(es)? [y/N] "; then
+      echo
+      echo "Nothing killed"
+      return 1
+    fi
+    echo
+  fi
 
   if $force; then
     kill -KILL $pids
@@ -100,7 +130,11 @@ killport() {
   done
 
   if (( ${#alive} )); then
-    echo "Still running after SIGTERM: ${(j:, :)alive}. Retry with: killport -f ${(j: :)specs}" >&2
+    local -a alive_ports
+    for pid in $alive; do
+      alive_ports+=( ${(s: :)pid_ports[$pid]} )
+    done
+    echo "Still running after SIGTERM: ${(j:, :)alive}. Retry with: killport -fy ${(onu)alive_ports}" >&2
     return 1
   fi
   echo "Stopped ${#pids} process(es)"
